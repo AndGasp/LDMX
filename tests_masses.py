@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from cnn_function import *
+from data_format import correct
 
 def round_100(array):
     n = len(array)
@@ -69,6 +70,12 @@ for j in range(len(m_file_tab)): #evaluate ntrained network on other data
     n_event = len(data) #number of events
     dim = len(data['image'][0,:,:,0])
     depth = len(data['image'][0,0,0,:])
+
+    #normalize
+    for i in range(n_event):
+        data['image'][i,:,:,:] = uni_norm(data['image'][i,:,:,:])
+
+    data = correct(data) #patch
 
     nam = 'mass = {}'.format(mass_tab[j]) #description to ass as title to figures
 

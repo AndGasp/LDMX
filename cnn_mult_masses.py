@@ -47,6 +47,7 @@ np.random.shuffle(data)
 #normalize each event with respect to the max of the event
 for i in range(n_event):
 	data['image'][i,:,:,:] = uni_norm(data['image'][i,:,:,:])
+data = correct(data)
 
 #split into training and test datasets
 f_train = 0.7 #fraction of train events

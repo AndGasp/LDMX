@@ -389,7 +389,7 @@ def correct(array_data):
 file_placement = 'dataset/'
 
 #Already existant datasets
-
+"""
 formatted_array = merge_arrays([100],200000,200000,'xyz',20)
 
 name_save = 'data_formatted_xyz_m_100.npy'
@@ -476,8 +476,4 @@ formatted_array = merge_arrays([1000],100001,0,'xyz',20)
 
 name_save = 'sample_data_formatted_xyz_m_1000_noback.npy'
 np.save(file_placement+name_save,formatted_array)
-
-formatted_array = merge_arrays([],0,100001,'xyz',20)
-
-name_save = 'sample_data_formatted_xyz_onlyback.npy'
-np.save(file_placement+name_save,formatted_array)
+"""
