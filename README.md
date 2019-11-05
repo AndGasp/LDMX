@@ -10,6 +10,15 @@ Train CNN on simpulation output to distinguish background from signal using Ecal
 - cnn_multiple_m.py example of code to train models and evaluate them
 - test_masses.py example of code to load trained models and evaluate them on new data / visualize events
 
+
+Note:
+
+--ROOT files containing all hits can be found at: /nfs/slac/g/ldmx/users/lene/hits
+--Corresponding already converted npy files can be found at: /afs/slac.stanford.edu/u/re/agaspert/ldmx/data
+--A few already prepared datasets (datasets of 200 000 images for each
+A' mass and one dataset of 400 000 images for background can be found at: /afs/slac.stanford.edu/u/re/agaspert/ldmx/dataset
+
+
 1. Convert ROOT file to numpy array
 
 ROOT file:
