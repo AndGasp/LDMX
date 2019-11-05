@@ -543,7 +543,7 @@ def find_events(tag_tab,im_tab,score_tab,num=2):
             data_comp = im_tab[ind_good[k],:,:,:] #find processed image corresponding to this event
 
             #plot event
-            plot_scatter(data_actual_event,data_comp,3,title=names[index]+'\noutput={}'.format(score_tab[ind_good[k]]))
+            plot_scatter(data_actual_event,data_comp,3,title=names[index]+'({})'.format(num_event[k])+'\noutput={}'.format(score_tab[ind_good[k]]))
 
 
 
