@@ -1,6 +1,10 @@
-#format data before training
-#Andrea Gaspert 10/2019 agaspert@stanford.edu
-#only need to run this once
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+format data before training
+Andrea Gaspert 10/2019 agaspert@stanford.edu
+"""
 
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
@@ -12,10 +16,11 @@ y_min, y_max = -200,200
 z_min, z_max = -200,200
 
 m_tab = np.array([1,5,10,50,100,500,1000])
-sig_tab = ['data/signal_1.npy','data/signal_5.npy','data/signal_10.npy','data/signal_50.npy','data/signal_100.npy','data/signal_500.npy','data/signal_1000.npy']
-back_tab = ['data/background_0.npy','data/background_1.npy','data/background_2.npy','data/background_3.npy','data/background_4.npy','data/background_5.npy','data/background_6.npy','data/background_7.npy','data/background_8.npy']
-
-
+path='data/ecal/'
+sig_tab = ['signal/signal_1.npy','signal/signal_5.npy','signal/signal_10.npy','signal/signal_50.npy','signal/signal_100.npy','signal/signal_500.npy','signal/signal_1000.npy']
+back_tab = ['background/background_0.npy','background/background_1.npy','background/background_2.npy','background/background_3.npy','background/background_4.npy',
+	'background/background_5.npy','background/background_6.npy','background/background_7.npy','background/background_8.npy','background/background_9.npy',
+	'background/background_10.npy','background/background_11.npy','background/background_12.npy','background/background_13.npy','background/background_14.npy']
 
 
 def total_hits(npy_array):
@@ -38,7 +43,7 @@ def flat_npy(file_nam,tag=0,m=0):
 	(0 = number to trace original sim output file (number for background, mass for signal),
 	1 = event number within that file, 2 = mass (0 for background), 3 = x position (mm), 4 = y position (mm), 5 = z position (mm), 6 = Energy)
 	"""
-	npy_array = np.load(file_nam,allow_pickle=True, encoding='latin1')
+	npy_array = np.load(path+file_nam,allow_pickle=True, encoding='latin1')
 
 	n_e , n_t = total_hits(npy_array)
 
@@ -267,7 +272,6 @@ def im_xyz(data,dim,n_tot,depth=3,log=False):
 
 		if h % 10000 == 0:
 			print('{}% completed'.format(h/n_tot*100))
-	#print(merged_array['sim'],merged_array['num'],merged_array['mass'],merged_array['label'])
 
 	return merged_array
 
@@ -298,71 +302,93 @@ def merge_arrays(m_list,n_s_event,n_b_event,format_type,dim,depth=3,log=False):
 
 	i=0
 	#flatten all necessary signal data arrays and concatenate them
-	for m in m_list: 
-		ind = np.where((m_tab-m)==0)[0][0]
+	if n_s_event != 0:
+		for m in m_list: 
+			ind = np.where((m_tab-m)==0)[0][0]
 
-		if ind==None:
-			print('Mass not available!')
-		else:
-			if i==0:
-				data_s = flat_npy(sig_tab[ind],m*1e3,m)
-				index = np.where(data_s[:,1] == float(n_s_event))[0][-1]
-				data_s = data_s[:index,:]
+			if ind==None:
+				print('Mass not available!')
 			else:
-				new_data_s = flat_npy(sig_tab[ind],m*1e3,m) # array to contain all hits flattened out
-				index = np.where(new_data_s[:,1] == float(n_s_event))[0][-1]
-				new_data_s = new_data_s[:index,:]
+				if i==0:
+					data_s = flat_npy(sig_tab[ind],m*1e3,m)
+					index = np.where(data_s[:,1] == float(n_s_event))[0][-1]
+					data_s = data_s[:index,:]
+				else:
+					new_data_s = flat_npy(sig_tab[ind],m*1e3,m) # array to contain all hits flattened out
+					index = np.where(new_data_s[:,1] == float(n_s_event))[0][-1]
+					new_data_s = new_data_s[:index,:]
 
-				data_s = np.concatenate((data_s,new_data_s))
-		i+=1
+					data_s = np.concatenate((data_s,new_data_s))
+			i+=1
 
 	#flatten all necessary background data arrays to get to desired number of events and conc. them
 	i = 1
-	data_b = flat_npy(back_tab[0],0,0)
-	n_b = data_b[-1,1] #number of events in first dataset
-	num = n_b_event - n_b #number of events still needed to get to desired amount
+	if n_b_event != 0:
+		data_b = flat_npy(back_tab[0],0,0)
+		n_b = data_b[-1,1] #number of events in first dataset
+		num = n_b_event - n_b #number of events still needed to get to desired amount
 
-	if num<0:
-		index = np.where(data_b[:,1] == float(n_b_event))[0][-1]
-		data_b = data_b[:index,:]
+		if num<0:
+			index = np.where(data_b[:,1] == float(n_b_event))[0][-1]
+			data_b = data_b[:index,:]
 
-	while num>0:
-		new_data_b = flat_npy(back_tab[i],i,0)
+		while num>0:
+			new_data_b = flat_npy(back_tab[i],i,0)
 
-		n_b = new_data_b[-1,1]
+			n_b = new_data_b[-1,1]
 
-		if (num-n_b)<0:
-			index = np.where(new_data_b[:,1] == float(num))[0][-1]
-			new_data_b = new_data_b[:index,:]
+			if (num-n_b)<0:
+				index = np.where(new_data_b[:,1] == float(num))[0][-1]
+				new_data_b = new_data_b[:index,:]
 
-		num -= n_b
+			num -= n_b
 
-		data_b = np.concatenate((data_b,new_data_b))
+			data_b = np.concatenate((data_b,new_data_b))
 
-		i+=1
+			i+=1
 
-
-
-	#add mass information to background events
-	n_m = len(m_list) #number of masses in signal data
-	m_ind = np.random.randint(0,n_m,size=len(data_b)) 
-	m_list = np.array(m_list)
-	data_b[:,2] = m_list[m_ind]
+		#add mass information to background events
+		n_m = len(m_list) #number of masses in signal data
+		m_ind = np.random.randint(0,n_m,size=len(data_b)) 
+		m_list = np.array(m_list)
+		data_b[:,2] = m_list[m_ind]
 
 	#concatenate signal and background
-
-	data = np.concatenate((data_s,data_b))
+	if n_b_event != 0 :
+		data = np.concatenate((data_s,data_b))
+	else:
+		data = data_s
 	n_tot = len(m_list)*n_s_event + n_b_event
 
 	#create numpy array for all wanted events and fill it with info
 	merged_array_1= fun(data,dim,n_tot,depth,log)
 
+	merged_array_final = correct(merged_array_1)
 
-	return merged_array_1
+
+	return merged_array_final
+
+def correct(array_data):
+	"""
+	Patch to correct problem in event generation, some events are randomly empty.
+	Until problem found
+	"""
+	wrong = []
+	for i in range(len(array_data)):
+		if np.sum(array_data['image'][i,:,:,:]) == float(1200):
+			wrong.append(i)
+	array_data_good = np.delete(array_data,np.array(wrong))
+	n = len(array_data_good)
+	rest = int(n%100)
+	if rest != 0:
+		array_data_good = array_data_good[:-rest]
+	return array_data_good
 
 
-"""
+
 file_placement = 'dataset/'
+
+#Already existant datasets
 
 formatted_array = merge_arrays([100],200000,200000,'xyz',20)
 
@@ -410,8 +436,48 @@ formatted_array = merge_arrays([100],200000,200000,'z_split',20,depth=5,log=True
 name_save = 'data_formatted_z_m_100_d5_log.npy'
 np.save(file_placement+name_save,formatted_array)
 
-formatted_array = merge_arrays([1,10,100,1000],150000,400000,'xyz',20)
 
-name_save = 'data_formatted_xyz_allm.npy'
+formatted_array = merge_arrays([1,10,100,1000],200000,400000,'xyz',20)
+
+name_save = 'data_formatted_xyz_allm_large.npy'
 np.save(file_placement+name_save,formatted_array)
-"""
+
+formatted_array = merge_arrays([1],100001,0,'xyz',20)
+
+name_save = 'sample_data_formatted_xyz_m_1_noback.npy'
+np.save(file_placement+name_save,formatted_array)
+
+formatted_array = merge_arrays([5],100001,0,'xyz',20)
+
+name_save = 'sample_data_formatted_xyz_m_5_noback.npy'
+np.save(file_placement+name_save,formatted_array)
+
+formatted_array = merge_arrays([10],100001,0,'xyz',20)
+
+name_save = 'sample_data_formatted_xyz_m_10_noback.npy'
+np.save(file_placement+name_save,formatted_array)
+
+formatted_array = merge_arrays([50],100001,0,'xyz',20)
+
+name_save = 'sample_data_formatted_xyz_m_50_noback.npy'
+np.save(file_placement+name_save,formatted_array)
+
+formatted_array = merge_arrays([100],100001,0,'xyz',20)
+
+name_save = 'sample_data_formatted_xyz_m_100_noback.npy'
+np.save(file_placement+name_save,formatted_array)
+
+formatted_array = merge_arrays([500],100001,0,'xyz',20)
+
+name_save = 'sample_data_formatted_xyz_m_500_noback.npy'
+np.save(file_placement+name_save,formatted_array)
+
+formatted_array = merge_arrays([1000],100001,0,'xyz',20)
+
+name_save = 'sample_data_formatted_xyz_m_1000_noback.npy'
+np.save(file_placement+name_save,formatted_array)
+
+formatted_array = merge_arrays([],0,100001,'xyz',20)
+
+name_save = 'sample_data_formatted_xyz_onlyback.npy'
+np.save(file_placement+name_save,formatted_array)
