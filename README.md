@@ -7,8 +7,8 @@ Train CNN on simpulation output to distinguish background from signal using Ecal
 - root_2_python.py to convert ROOT files to npy arrays
 - data_format.py contains functions used to format data for training
 - cnn_function.py contains functions to define transformations/datasets/models, train and test models, ROC curves etc.
-- train_test_cnn_singlem.py, train_test_cnn_multiple_m.py example of code to train models and evaluate them
-- test_masses.py example of code to load trained models and evaluate them on new data
+- cnn_multiple_m.py example of code to train models and evaluate them
+- test_masses.py example of code to load trained models and evaluate them on new data / visualize events
 
 1. Convert ROOT file to numpy array
 
@@ -38,6 +38,7 @@ Converts in to a numpy array of the shape (n_hits , 6)
 
 2. Format data before training
  
+ #THERE IS AN ERROR THAT AFFECTS A FEW HUNDRED EVENTS THAT IS PATCHED, but needs to be resolved
  use funtion merge_arrays in data_format.py:
  
  merge_arrays(m_list,n_s_event,n_b_event,format_type,dim,depth=3,log=False)
@@ -64,7 +65,6 @@ Converts in to a numpy array of the shape (n_hits , 6)
  3.  Train network
  
  Aleady existant code to start from:
- - cnn_one_mass.py to train network without using mass info
  - cnn_multiple_masses.py to train network on dataset with multiple masses and use mass info
  
  - load wanted npy array with formatted data
@@ -85,11 +85,13 @@ Converts in to a numpy array of the shape (n_hits , 6)
   plots histogram of output of the network for signal and background
   returns array with output of the network on test events, array with labels, array with images, array with id number and array with masses
   
-  save parameters of trained model to .py file to load trained model for later use
+  save parameters of trained model to .pt file to load trained model for later use
   
   4. Evaluate model performance
  
   run roc_curve to plot roc curve, compute area under and compute threshold that minimises number of misclassified events
+  run accuracy on the output of a model and the labels, for a given threshold, to quickly compute the accuracy, the signal 
+  acceptance, the background suppression and the percentage of events above cuts that are signal
   
   5. Test trained model with data not in original train/test dataset
   
