@@ -1,5 +1,10 @@
-#TRain model on multiple masses
-from __future__ import print_function, division
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+Example code of how to create dataset, train model and evaluate it.
+"""
+
 import torch
 import torch.nn.functional as F
 from skimage import io, transform
@@ -8,6 +13,7 @@ import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from cnn_function import *
+from data_format import *
 
 # Ignore warnings
 import warnings
@@ -15,64 +21,73 @@ warnings.filterwarnings("ignore")
 
 
 # Hyperparameters
-num_epochs = 1
+num_epochs = 5
 batch_size = 100
-learning_rate = 0.001
+learning_rate = 0.0005
 
-#import data to use as dataset for training and testing (array already signal and background together, see data_format.py)
+#create images out of list of hits if not already done, for desired signal and background events
+#formatted_array = merge_arrays([1,100],200000,400000,'xyz',20)
+
+#save dataset to reuse
+#name_save = 'dataset/data_formatted_xyz_2ms.npy'
+#np.save(name_save,formatted_array)
+
+#import data to use as dataset for training and testing 
 data = np.load('dataset/data_formatted_xyz_allm.npy',allow_pickle=True, encoding='latin1')
 name = 'simple 2 layer CNN with extra mass input, RBG-XYZ projections \n20x20, not normalized' #description to ass as title to figures
 
 n_event = len(data) #number of events
 print('total number of events:{}'.format(n_event))
+dim = len(data['image'][0,:,:,0])
+depth = len(data['image'][0,0,0,:])
 
 #shuffle events
 np.random.shuffle(data)
 
+#normalize each event with respect to the max of the event
+for i in range(n_event):
+	data['image'][i,:,:,:] = uni_norm(data['image'][i,:,:,:])
+
 #split into training and test datasets
 f_train = 0.7 #fraction of train events
-n_train = int(0.05*n_event)
-n_test = int(0.05*n_event)
+n_train = int(f_train*n_event)
+n_test = int((1-f_train)*n_event)
 
 data_train = data[:n_train]
 data_test = data[-n_test:]
 
-data_max, data_mean, data_std = mean_per_channel(data['image'])  #in case want to normalize data
-dim = len(data['image'][0,:,:,0])
-depth = len(data['image'][0,0,0,:])
-
+#Compose extra transformation to apply to data, minimally need to convert image to tensor
 all_transforms = transforms.Compose([transforms.ToTensor()])
 
+#Initiate training and test datasets
 event_train = my_Dataset(npy_array=data_train,transform=all_transforms) #create training dataset
 event_test = my_Dataset(npy_array=data_test,transform=all_transforms) #create test dataset
 
+#Create event iterators
 train_loader_1 = DataLoader(dataset=event_train, batch_size=batch_size, shuffle=True) #create iterator for training and testinsg
 test_loader_1 = DataLoader(dataset=event_test, batch_size=batch_size, shuffle=True)
 
 
-model = ModelExtraInput() #create instance of Ctorch.NN model
+model = ModelExtraInput() #create instance of model
+#If want to train without using mass information, use ConvNet()
 
 #run training and testing
 outs , labels , images , ids, masses = train_test_cnn_multiple_m(model,train_loader_1,test_loader_1,num_epochs,learning_rate,batch_size,name,dim,depth=3)
+#if using ConvNet(), need to use train_test_cnn_single_m ,  same arguments
+
 
 #Create histogram and ROC curves for he output on this testing dataset
 area, thresh = roc_curve(labels,outs[:,1],num_epochs,learning_rate,batch_size,name)
 
-classification = (outs[:,1]>thresh) #final classification from this network
-ind_false = np.where((classification+labels)==1)[0] #indexes of misclassified events
-misc_sig = np.where((classification+1)*labels==1)[0] #missed signal
-
-n_false = len(ind_false) #number of misc. events.
-n_sig = np.sum(labels) #actual number of signal events
-sig_false = len(misc_sig) #number of misc. sig events
+#computes fraction of correctly classified events, fraction of signal passing cuts
+#and fraction of events passing cuts that are actually signal
+accur,accept,sign_frac,back_sup = accuracy(labels,outs[:,1],thresh)
 
 
-print('optimal threshold = {:.2f}, {} misclassified events ({:.2f}%), Signal acceptance of {}%'.format(thresh,n_false,n_false/n_test*100,(n_sig-sig_false)/n_sig*100))
-
+print('optimal threshold = {:.4f}, {:.4f} misclassified events ({:.4f}%), accuracy of {:.4f}, Signal acceptance of {:.4f}%, background sup. of {:.4f}'.format(thresh,n_false,accur,accept,sign_frac,back_sup))
 
 #save parameters of trained model
-torch.save(model.state_dict(), 'trained_model/model_multimass.pt')
-
+torch.save(model.state_dict(), 'trained_models/model_multimass.pt')
 
 """
 #Show some misclassified events

@@ -1,5 +1,10 @@
-#Functions for neural network
-from __future__ import print_function, division
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Dataset definitions, model definitions, function to run, test and evaluate models, 
+to produce ROC curves and compute accuracy of models.
+
+"""
 import torch
 import torch.nn.functional as F
 from skimage import io, transform
@@ -99,11 +104,10 @@ class ModelExtraInput(torch.torch.nn.Module):
             torch.nn.ReLU(),
             torch.nn.MaxPool2d(kernel_size=2, stride=2))
         self.drop_out = torch.nn.Dropout()
-        self.fc1 = torch.nn.Linear(5 * 5 * 64, 200)
-        self.fc2 = torch.nn.Linear(200, 8)
+        self.fc1 = torch.nn.Linear(5 * 5 * 64, 20)
         
-        self.fc3 = torch.nn.Linear(8 + 1, 60)
-        self.fc4 = torch.nn.Linear(60, 2)
+        self.fc2 = torch.nn.Linear(20 + 1, 60)
+        self.fc3 = torch.nn.Linear(60, 2)
         
     def forward(self, x, m):
 
@@ -112,14 +116,13 @@ class ModelExtraInput(torch.torch.nn.Module):
         out = out.reshape(out.size(0), -1)
         out = self.drop_out(out)
         out = self.fc1(out)
-        out = self.fc2(out)
         x1 = out.float()
         x2 = torch.empty([len(x),1])
         x2[:,0] = m.float()
         
         out = torch.cat((x1, x2.float()), dim=1)
-        out = F.relu(self.fc3(out))
-        out = self.fc4(out)
+        out = F.relu(self.fc2(out))
+        out = self.fc3(out)
         return out
         
 
@@ -406,7 +409,7 @@ def test_any_model(model,test_loader,nam,batch_size,dim,depth=3):
     plt.title(nam)
     plt.show()
 
-    return mod_tab,label_tab,im_tab,id_tab, m_tab
+    return mod_tab,label_tab,im_tab,id_tab,m_tab
 
 
 def roc_curve(labels,output,batch_size,n_epochs,learning_rate,nam):
@@ -423,6 +426,7 @@ def roc_curve(labels,output,batch_size,n_epochs,learning_rate,nam):
     tvp = np.zeros(n_p) #to contains true positive rate
     tfp = np.zeros(n_p) #to contain false positive rate
     misc = np.zeros(n_p) #to contain number of misclassified events
+    t_p_frac = np.zeros(n_p) #to contain number of misclassified events passing the cut
 
 
     for i,t in enumerate(thresh_tab):
@@ -445,11 +449,18 @@ def roc_curve(labels,output,batch_size,n_epochs,learning_rate,nam):
         tfp[i] = n_fp/(n_fp+n_vn)
 
         misc[i] = n_fp + n_fn
+        if (n_fp + n_vp)!=0:
+        	t_p_frac[i] = n_vp/(n_fp + n_vp)
+        else:
+        	t_p_frac[i] = 0
 
     area_under = np.trapz(tvp,tfp) #computes area under curve using trap. rule
 
     #define suggested threshold where it minimises misclassified events (change?)
     threshold = thresh_tab[np.argmin(misc)]
+
+    print('oprimal threshold = {:.3f}'.format(threshold))
+    print('AU ROC = {:.4f}'.format(area_under))
 
     #plot ROC curve
     plt.plot(tfp,tvp,'k-')
@@ -463,11 +474,32 @@ def roc_curve(labels,output,batch_size,n_epochs,learning_rate,nam):
 
     return area_under, threshold
 
-tags = np.array([0,1,2,3,4,5,6,7,8,1000,10000,100000,1000000]) #tags used to identify events
-files = ['data/background_0.npy','data/background_1.npy','data/background_2.npy','data/background_3.npy',
-    'data/background_4.npy','data/background_5.npy','data/background_6.npy','data/background_7.npy','data/background_8.npy',
-    'data/signal_1.npy','data/signal_5.npy','data/signal_10.npy','data/signal_100.npy','data/signal_1000.npy'] #correspinding file where the original event was located
-names = ['back. 0','back. 1','back. 2','back. 3','back. 4','back. 5','back. 6','back. 7','back. 8','Signal m=1',
+def accuracy(labels, outs,thresh):
+    """
+    Function returning accuracy over all events, acceptance of signal, and portion of events passing cut being signal
+    """
+    classification = (outs>thresh) #final classification from this network, 0 if background, 1 if signal
+    n_tot = len(classification)
+
+    n_false = len(np.where((classification+labels)==1)[0]) #number of misc. events.
+    n_sig = np.sum(labels) #actual number of signal events
+    sig_false = len(np.where((classification+1)*labels==1)[0]) #number of misc. sig events
+    sig_true = n_sig - sig_false #number of properly classied signal events
+    back_false = n_false - sig_false # number of background events passing cuts
+
+    accur = np.sum(classification==labels)/n_tot #fraction of events classified correctly
+    accept = sig_true/n_sig
+    sign_frac = sig_true/(back_false+sig_true)
+    back_sup = back_false/(n_tot-n_sig)
+
+    return accur,accept,sign_frac,back_sup
+
+path = 'data/ecal/'
+tags = np.array([0,1,2,3,4,5,6,7,1000,10000,100000,1000000]) #tags used to identify events
+files = ['background/background_0.npy','background/background_1.npy','background/background_2.npy','background/background_3.npy',
+    'background/background_4.npy','background/background_6.npy','background/background_7.npy','background/background_8.npy',
+    'signal/signal_1.npy','signal/signal_5.npy','signal/signal_10.npy','signal/signal_100.npy','signal/signal_1000.npy'] #correspinding file where the original event was located
+names = ['back. 0','back. 1','back. 2','back. 3','back. 4','back. 6','back. 7','back. 8','Signal m=1',
     'Signal m=5','Signal m=10','Signal m=100','Signal m=1000']
 
 
@@ -515,54 +547,17 @@ def find_events(tag_tab,im_tab,score_tab,num=2):
 
 
 
-class uni_norm(object):
+def uni_norm(array):
     """
-    transformation on data which can be composed with other torchvision transformations
-    using torchvision.transforms.compose. Needs to be applied to data before conversion to torch tensor.
-
     normalize events between 0 and 1, with respect to maximimum energy for ALL events
     i.e. keeps information on relative intensity between events
 
     takes in events and maximum intensity value needed for normalisation
     """
+    max_val = np.amax(array+0.1)
+  
+    return (array+0.1)/max_val
 
-    def __init__(self, max_val):
-
-        self.max_val = max_val
-
-    def __call__(self, sample):
-
-        img = sample.numpy()
-        #find maximum value in image
-        max_value = np.amax(img)
-
-        img = img/max_value
-
-        return torch.from_numpy(img)
-
-
-class norm_all(object):
-    """
-    transformation on data which can be composed with other torchvision transformations
-    using torchvision.transforms.compose. Needs to be applied to data before conversion to torch tensor.
-
-    normalize events between 0 and 1, with respect to maximimum energy for ALL events
-    i.e. keeps information on relative intensity between events
-
-    takes in events and maximum intensity value needed for normalisation
-    """
-
-    def __init__(self, max_val):
-        self.max_val = max_val
-
-    def __call__(self, sample):
-
-        image = sample.numpy()
-
-        img = image/self.max_val
-
-
-        return torch.from_numpy(img)
 
 
 def mean_per_channel(image_array):
